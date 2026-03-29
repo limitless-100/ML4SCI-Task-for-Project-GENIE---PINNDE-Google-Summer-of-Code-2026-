@@ -1,14 +1,14 @@
-# Damped Harmonic Oscillator — Solved with PINNs
+# Damped Harmonic Oscillator - Solved with PINNs
 
 > **Physics-Informed Neural Networks** (Soft & Hard formulations) conditioned on the damping ratio ξ ∈ [0.1, 0.4], trained on the domain z ∈ [0, 20].
 
----
+<br>
 
 ![Training Evolution](training_evolution.gif)
 
 *The animation above shows both PINNs converging toward the exact analytical solution across all four damping ratios as training progresses.*
 
----
+<br>
 
 ## The Problem
 
@@ -18,7 +18,7 @@ $$\frac{d^2x}{dz^2} + 2\xi\,\frac{dx}{dz} + x = 0, \quad z\in[0,20]$$
 
 with fixed initial conditions $x(0)=0.7$, $x'(0)=1.2$ and damping ratio $\xi\in[0.1,\,0.4]$ (all underdamped).
 
-Rather than training a separate model for each ξ, we train **one network** that takes $(z,\,\xi)$ as joint input and learns the full solution manifold — so you can query any ξ in the training range at inference time with a single forward pass.
+Rather than training a separate model for each ξ, we train **one network** that takes $(z,\,\xi)$ as joint input and learns the full solution manifold - so you can query any ξ in the training range at inference time with a single forward pass.
 
 The closed-form reference solution is
 
@@ -26,7 +26,7 @@ $$x(z;\xi)=e^{-\xi z}\!\left[A\cos(\omega_d z) + B\sin(\omega_d z)\right]$$
 
 where $\omega_d=\sqrt{1-\xi^2}$, $A=x_0$, $B=\dfrac{v_0+\xi x_0}{\omega_d}$.
 
----
+<br>
 
 ## Two PINN Formulations
 
@@ -34,7 +34,7 @@ where $\omega_d=\sqrt{1-\xi^2}$, $A=x_0$, $B=\dfrac{v_0+\xi x_0}{\omega_d}$.
 
 The network $\mathcal{N}_s(z,\xi;\theta)$ maps inputs directly to $x$ and the loss is
 
-$$\mathcal{L}_{\text{soft}} = \lambda_{\text{pde}}\underbrace{\frac{1}{N_c}\sum_{i=1}^{N_c}\!\bigl(x''+2\xi x'+x\bigr)^2}_{\text{PDE residual}} + \lambda_{IC}\Bigl[\bigl(x(0,\xi)-x_0\bigr)^2 + \bigl(x'(0,\xi)-v_0\bigr)^2\Bigr]$$
+$$\mathcal{L}_{\text{soft}} = \lambda_{\text{ode}}\,\underbrace{\frac{1}{N_{c}}\sum_{i=1}^{N_c}\left(x'' + 2\xi x' + x\right)^2_{z_i,\xi_i}}_{\text{ODE residual}} + \lambda_{IC}\left[\left(x(0,\xi)-x_0\right)^2 + \left(x'(0,\xi)-v_0\right)^2\right]$$
 
 The weight $\lambda_{IC}=50$ was chosen by a short sweep. The IC terms shrink during training but never reach exact zero.
 
@@ -42,18 +42,18 @@ The weight $\lambda_{IC}=50$ was chosen by a short sweep. The IC terms shrink du
 
 We embed the ICs directly into the output layer via the **ansatz**
 
-$$x(z,\xi) = x_0 + v_0\,z + z^2\cdot\mathcal{N}_h(z,\xi;\theta)$$
+$$x(z, \xi) = e^{-\xi z} \Big( x_0 + (v_0 + x_0\xi) z + z^2 N_h(z, \xi; \theta) \Big)$$
 
 Quick check:
 
 | Condition | Value |
 |---|---|
-| $x(0,\xi)$ | $x_0$ ✓ |
-| $x'(0,\xi)$ | $v_0+0+0=v_0$ ✓ |
+| $x(0,\xi)$ | $x_0$  |
+| $x'(0,\xi)$ | $v_0$  |
 
-Because both ICs are guaranteed for **any** network weights, the hard-PINN loss contains only the PDE residual — no λ_IC hyperparameter needed.
+Because both ICs are guaranteed for **any** network weights, the hard-PINN loss contains only the PDE residual - no λ_IC hyperparameter needed.
 
----
+<br>
 
 ## Shared Architecture
 
@@ -70,12 +70,12 @@ Input (z, ξ) → [Linear(2→64) → Tanh] × 5 → Linear(64→1)
 | Activation | Tanh |
 | Initialisation | Xavier normal |
 | Optimiser | Adam + Cosine Annealing |
-| Learning rate | 1 × 10⁻³ → 5 × 10⁻⁶ |
+| Learning rate | 1 × 10⁻³ |
 | Epochs | 12 000 |
 | Collocation points / batch | 2 500 |
-| Parameters | ~25 k |
+| Parameters | ~17 k |
 
----
+<br>
 
 ## Results
 
@@ -87,62 +87,47 @@ Input (z, ξ) → [Linear(2→64) → Tanh] × 5 → Linear(64→1)
 
 | ξ | Soft RMSE | Hard RMSE | Soft Max \|e\| | Hard Max \|e\| |
 |---|---|---|---|---|
-| 0.1 | ≈ 3 × 10⁻³ | ≈ 2 × 10⁻³ | ≈ 8 × 10⁻³ | ≈ 5 × 10⁻³ |
-| 0.2 | ≈ 2 × 10⁻³ | ≈ 1 × 10⁻³ | ≈ 6 × 10⁻³ | ≈ 3 × 10⁻³ |
-| 0.3 | ≈ 1 × 10⁻³ | ≈ 7 × 10⁻⁴ | ≈ 3 × 10⁻³ | ≈ 2 × 10⁻³ |
-| 0.4 | ≈ 7 × 10⁻⁴ | ≈ 5 × 10⁻⁴ | ≈ 2 × 10⁻³ | ≈ 1 × 10⁻³ |
+| 0.1 | 1.953e-01 | 2.405e-02 | 3.789e-01 | 4.037e-02 |
+| 0.2 | 3.946e-02 | 4.739e-03 | 9.177e-02 | 1.152e-02 |
+| 0.3 | 1.233e-02 | 2.303e-03 | 2.419e-02 | 5.062e-03 |
+| 0.4 | 1.797e-02 | 3.107e-02 | 3.107e-02 | 1.347e-02 |
 
 *(Exact numbers depend on training run; Hard PINN consistently outperforms Soft PINN in the majority of runs.)*
 
----
+<br>
 
 ## Phase Portraits
 
 ![Phase Portraits](phase_portraits.png)
 
-*Each spiral starts at $(x_0, v_0)=(0.7,\,1.2)$ (red dot) and converges to the origin as the oscillation damps out. Both PINNs track the exact spiral closely.*
+*Each spiral starts at $(x_0, v_0)=(0.7,1.2)$ (red dot) and converges to the origin as the oscillation damps out. Both PINNs track the exact spiral closely.*
 
----
+<br>
 
 ## Solution Manifold (3-D)
 
 ![3D Surface](3d_solution_manifold.png)
 
-*The same solution plotted over the full $(z,\xi)$ space. The PINN surfaces closely match the exact analytical surface.*
+*The same solution plotted over the full $(z,\xi)$ space. The hard PINN surface closely matches the exact analytical surface.*
 
----
+<br>
 
 ## Loss Convergence
 
 ![Loss Convergence](loss_convergence.gif)
 
-*The Hard PINN's loss (green) drops more steeply than the Soft PINN's (red) in the early phases because it does not have to "learn" the initial conditions — they are already satisfied by the ansatz.*
+*The Hard PINN's loss (green) drops more steeply than the Soft PINN's (red) in the early phases because it does not have to "learn" the initial conditions. They are already satisfied by the ansatz.*
 
----
+<br>
 
 ## Generalisation
+![Generalization Check](generalisation_check.png)
 
 Both models are evaluated at ξ = 0.15, 0.25, 0.35 — values that were never targeted during training. The predictions remain accurate, confirming the networks have learned the underlying solution family rather than a collection of memorised trajectories.
 
----
+<br>
 
-## Repo Structure
 
-```
-.
-├── damped_oscillator_pinn.ipynb   # Google Colab notebook (main deliverable)
-├── README.md
-├── training_evolution.gif
-├── loss_convergence.gif
-├── exact_solutions.png
-├── pinn_main_comparison.png
-├── phase_portraits.png
-├── 3d_solution_manifold.png
-├── error_heatmap.png
-└── generalisation_check.png
-```
-
----
 
 ## Getting Started
 
@@ -163,7 +148,7 @@ jupyter notebook damped_oscillator_pinn.ipynb
 
 No additional dependencies are needed; all GIF generation uses Pillow (bundled with matplotlib's animation writer).
 
----
+<br>
 
 ## Design Choices and Observations
 
@@ -173,31 +158,14 @@ PINNs compute second-order derivatives via autograd. ReLU has zero second deriva
 **Why cosine annealing?**  
 The loss landscape for PINNs often has wide, flat regions after initial rapid descent. Cosine annealing keeps the learning rate high enough to escape these plateaus, then cools it down toward the end to avoid overshooting sharp minima.
 
-**Why 2 500 collocation points per batch?**  
-This is a balance between gradient quality (more points → better estimate of the true PDE residual) and speed. On a GPU, 2 500 points adds very little overhead over 500, so we err on the side of more points.
+**Why 2500 collocation points per batch?**  
+This is a balance between gradient quality (more points → better estimate of the true ODE residual) and speed. On a GPU, 2500 points adds very little overhead over 500, so we err on the side of more points.
 
 **Hard PINN stability:**  
 Because the Hard PINN ansatz enforces ICs exactly from epoch 0, the optimizer sees a smaller effective loss from the start. This often leads to a smoother loss curve and fewer "jumps" compared to the Soft PINN, where high λ_IC can create competing gradients early in training.
 
----
+<br>
 
-## Future SOTA Ideas
-
-1. **Fourier Feature Embeddings** — map the raw inputs through random Fourier features before the first linear layer. This removes the spectral bias and would help for ξ = 0.1 where the signal oscillates for the entire 20-unit window.
-
-2. **hp-Adaptive Collocation (residual-based refinement)** — instead of sampling collocation points uniformly, use the current residual to identify regions with high error and concentrate points there. The DeepXDE library supports this out of the box.
-
-3. **Meta-PINN / MAML** — treat each ξ as a "task" and use Model-Agnostic Meta-Learning. After meta-training, the network adapts to a completely new ξ in a handful of gradient steps.
-
-4. **Physics-Informed Neural Operator (PINO)** — lift the approach from parameter-to-solution ($\xi\to x$) to function-to-function ($c(z)\to x(z)$), allowing spatially-varying damping profiles that the current formulation cannot handle.
-
-5. **Causal Training Curriculum (Wang et al. 2022)** — weight the PDE residual by a causality factor $w(z)\propto e^{-\epsilon\,\mathcal{R}(<z)}$ so the network first gets $z\approx 0$ right before worrying about $z=20$. This is known to cut training time roughly in half for stiff equations.
-
-6. **Bayesian PINNs** — replace point-estimate weights with distributions (via variational inference or MCMC). The output becomes a distribution over solutions, giving calibrated uncertainty bounds — useful for engineering applications where you need to know not just the prediction but how much to trust it.
-
-7. **Neural ODE + Adjoint Hybrid** — propagate ICs forward with a Neural ODE solver (exact gradients via adjoint method) and use PINN residual losses only as a physics-informed regulariser. This could dramatically reduce the number of collocation points needed.
-
----
 
 ## References
 
@@ -206,7 +174,7 @@ Because the Hard PINN ansatz enforces ICs exactly from epoch 0, the optimizer se
 - Lu, L., Meng, X., Mao, Z., & Karniadakis, G.E. (2021). DeepXDE: A deep learning library for solving differential equations. *SIAM Review*, 63(1), 208–228.
 - Lagaris, I.E., Likas, A., & Fotiadis, D.I. (1998). Artificial neural networks for solving ordinary and partial differential equations. *IEEE Transactions on Neural Networks*, 9(5), 987–1000.
 
----
+<br>
 
 ## License
 
